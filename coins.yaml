@@ -72,3 +72,12 @@ coins:
         uri: "x-sonosapi-radio:ST%3aetc"
         title: "Chill Radio"
         volume: 15
+
+  # --- Your coin: Never Gonna Give You Up ---
+  "04b0aaa21f1d90":
+    name: "Never Gonna Give You Up"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "Rick Astley - Never Gonna Give You Up.mp3"
+        blocking: false

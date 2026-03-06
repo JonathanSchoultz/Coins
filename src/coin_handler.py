@@ -40,6 +40,7 @@ class CoinHandler:
         self.sonos = sonos
         self.messenger = messenger
         self._coins: dict = {}
+        self._coins_by_uid: dict = {}
         self._coins_file = Path(coins_file)
         self._runtime = runtime_config or {}
         self._one_time_only = self._runtime.get("one_time_only", True)
@@ -53,6 +54,26 @@ class CoinHandler:
         self._load_redeemed_state()
         self._load_coins()
 
+    @staticmethod
+    def _normalize_uid(uid: str) -> str:
+        """
+        Normalize UID for stable matching/persistence.
+
+        Accepts forms like:
+          - 04b0aaa21f1d90
+          - 04:B0:AA:A2:1F:1D:90
+          - 04 b0 aa a2 1f 1d 90
+        Returns:
+          - 04:B0:AA:A2:1F:1D:90
+        """
+        compact = "".join(ch for ch in str(uid).upper() if ch in "0123456789ABCDEF")
+        if not compact:
+            return str(uid).strip().upper()
+        if len(compact) % 2 == 1:
+            # Keep odd-length formats as upper raw to avoid accidental corruption.
+            return str(uid).strip().upper()
+        return ":".join(compact[i:i + 2] for i in range(0, len(compact), 2))
+
     def _load_redeemed_state(self):
         if not self._redeemed_state_file.exists():
             return
@@ -60,7 +81,7 @@ class CoinHandler:
             with open(self._redeemed_state_file) as f:
                 data = yaml.safe_load(f) or {}
             redeemed = data.get("redeemed_uids", [])
-            self._redeemed = set(str(x).upper() for x in redeemed)
+            self._redeemed = set(self._normalize_uid(x) for x in redeemed)
             logger.info("Loaded %d redeemed UID(s) from %s",
                         len(self._redeemed), self._redeemed_state_file)
         except Exception:
@@ -86,6 +107,9 @@ class CoinHandler:
             with open(self._coins_file) as f:
                 data = yaml.safe_load(f) or {}
             self._coins = data.get("coins", {})
+            self._coins_by_uid = {
+                self._normalize_uid(uid): coin for uid, coin in self._coins.items()
+            }
             logger.info("Loaded %d coin definitions from %s",
                         len(self._coins), self._coins_file)
         except Exception:
@@ -97,11 +121,12 @@ class CoinHandler:
         self._load_coins()
 
     def get_status(self, uid: str) -> str:
-        coin = self._coins.get(uid)
+        norm_uid = self._normalize_uid(uid)
+        coin = self._coins_by_uid.get(norm_uid)
         if coin is None:
             return CoinStatus.UNKNOWN
 
-        if self._one_time_only and uid in self._redeemed:
+        if self._one_time_only and norm_uid in self._redeemed:
             return CoinStatus.REDEEMED
 
         expires = coin.get("expires")
@@ -124,27 +149,29 @@ class CoinHandler:
 
     def handle_tag(self, uid: str):
         """Main entry point: process a scanned NFC tag."""
+        norm_uid = self._normalize_uid(uid)
         if self._coin_sound:
             self.audio.play(self._coin_sound, blocking=self._coin_sound_blocking)
 
-        status = self.get_status(uid)
-        coin = self._coins.get(uid, {})
-        name = coin.get("name", uid)
+        status = self.get_status(norm_uid)
+        coin = self._coins_by_uid.get(norm_uid, {})
+        name = coin.get("name", norm_uid)
 
-        logger.info("Processing coin '%s' (%s) — status: %s", name, uid, status)
+        logger.info("Processing coin '%s' (raw=%s, normalized=%s) — status: %s",
+                    name, uid, norm_uid, status)
 
         if status == CoinStatus.UNKNOWN:
-            logger.warning("Unknown tag: %s", uid)
+            logger.warning("Unknown tag: %s", norm_uid)
             self._handle_rejection("Unknown tag")
             return
 
         if status == CoinStatus.EXPIRED:
-            logger.warning("Expired coin: %s (%s)", name, uid)
+            logger.warning("Expired coin: %s (%s)", name, norm_uid)
             self._handle_rejection(f"Expired: {name}")
             return
 
         if status == CoinStatus.REDEEMED:
-            logger.warning("Already redeemed coin: %s (%s)", name, uid)
+            logger.warning("Already redeemed coin: %s (%s)", name, norm_uid)
             self._handle_rejection(f"Already redeemed: {name}")
             return
 
@@ -157,9 +184,9 @@ class CoinHandler:
             self.audio.play(self._success_sound, blocking=False)
 
         if self._one_time_only:
-            self._redeemed.add(uid)
+            self._redeemed.add(norm_uid)
             self._save_redeemed_state()
-            logger.info("Marked coin as redeemed: %s (%s)", name, uid)
+            logger.info("Marked coin as redeemed: %s (%s)", name, norm_uid)
 
         logger.info("Executing %d action(s) for '%s'", len(actions), name)
         for i, action in enumerate(actions):
