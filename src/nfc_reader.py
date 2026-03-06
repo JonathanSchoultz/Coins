@@ -35,6 +35,11 @@ _KEY_MAP = {
     ecodes.KEY_3: "3", ecodes.KEY_4: "4", ecodes.KEY_5: "5",
     ecodes.KEY_6: "6", ecodes.KEY_7: "7", ecodes.KEY_8: "8",
     ecodes.KEY_9: "9",
+    # Some RFID readers emit keypad scancodes instead of top-row digits.
+    ecodes.KEY_KP0: "0", ecodes.KEY_KP1: "1", ecodes.KEY_KP2: "2",
+    ecodes.KEY_KP3: "3", ecodes.KEY_KP4: "4", ecodes.KEY_KP5: "5",
+    ecodes.KEY_KP6: "6", ecodes.KEY_KP7: "7", ecodes.KEY_KP8: "8",
+    ecodes.KEY_KP9: "9",
     ecodes.KEY_A: "A", ecodes.KEY_B: "B", ecodes.KEY_C: "C",
     ecodes.KEY_D: "D", ecodes.KEY_E: "E", ecodes.KEY_F: "F",
     ecodes.KEY_G: "G", ecodes.KEY_H: "H", ecodes.KEY_I: "I",
@@ -157,7 +162,7 @@ class NFCReader:
                 if key_event.keystate != key_event.key_down:
                     continue
 
-                if key_event.scancode == ecodes.KEY_ENTER:
+                if key_event.scancode in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
                     if buffer:
                         raw_uid = "".join(buffer)
                         uid = self._format_uid(raw_uid)
