@@ -51,6 +51,7 @@ class CoinHandler:
             self._runtime.get("redeemed_state_file", "redeemed_tags.yaml")
         )
         self._redeemed: set[str] = set()
+        self._silenced_redeemed_uids: set[str] = set()
         self._load_redeemed_state()
         self._load_coins()
 
@@ -150,9 +151,6 @@ class CoinHandler:
     def handle_tag(self, uid: str):
         """Main entry point: process a scanned NFC tag."""
         norm_uid = self._normalize_uid(uid)
-        if self._coin_sound:
-            self.audio.play(self._coin_sound, blocking=self._coin_sound_blocking)
-
         status = self.get_status(norm_uid)
         coin = self._coins_by_uid.get(norm_uid, {})
         name = coin.get("name", norm_uid)
@@ -171,8 +169,12 @@ class CoinHandler:
             return
 
         if status == CoinStatus.REDEEMED:
-            logger.warning("Already redeemed coin: %s (%s)", name, norm_uid)
-            self._handle_rejection(f"Already redeemed: {name}")
+            # Intentionally silent for already redeemed tags.
+            # A redeemed coin may remain on the reader; do nothing to avoid
+            # repeated sounds/LED flashes.
+            if norm_uid not in self._silenced_redeemed_uids:
+                logger.info("Ignoring already redeemed coin: %s (%s)", name, norm_uid)
+                self._silenced_redeemed_uids.add(norm_uid)
             return
 
         actions = coin.get("actions", [])
@@ -180,20 +182,27 @@ class CoinHandler:
             logger.info("Coin '%s' has no actions defined", name)
             return
 
+        if self._coin_sound:
+            self.audio.play(self._coin_sound, blocking=self._coin_sound_blocking)
+
         if self._success_sound:
             self.audio.play(self._success_sound, blocking=False)
 
-        if self._one_time_only:
-            self._redeemed.add(norm_uid)
-            self._save_redeemed_state()
-            logger.info("Marked coin as redeemed: %s (%s)", name, norm_uid)
-
         logger.info("Executing %d action(s) for '%s'", len(actions), name)
+        had_action_failure = False
         for i, action in enumerate(actions):
             try:
                 self._execute_action(action, i + 1, len(actions))
             except Exception:
+                had_action_failure = True
                 logger.exception("Action %d failed for coin '%s'", i + 1, name)
+
+        # Mark as redeemed after we have attempted the first valid execution path.
+        # This avoids "redeemed before action" behavior when debugging playback.
+        if self._one_time_only and not had_action_failure:
+            self._redeemed.add(norm_uid)
+            self._save_redeemed_state()
+            logger.info("Marked coin as redeemed: %s (%s)", name, norm_uid)
 
     def _handle_rejection(self, reason: str):
         """Flash red and play error sound for expired/unknown tags."""
