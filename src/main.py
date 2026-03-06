@@ -87,6 +87,7 @@ def main():
         audio=audio,
         sonos=sonos,
         messenger=messenger,
+        runtime_config=config.get("runtime", {}),
     )
 
     if args.simulate:

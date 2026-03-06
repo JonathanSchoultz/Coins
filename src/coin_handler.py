@@ -20,6 +20,7 @@ class CoinStatus:
     READY = "ready"
     EXPIRED = "expired"
     UNKNOWN = "unknown"
+    REDEEMED = "redeemed"
 
 
 class CoinHandler:
@@ -32,6 +33,7 @@ class CoinHandler:
         audio: AudioPlayer,
         sonos: SonosController,
         messenger: Messenger,
+        runtime_config: Optional[dict] = None,
     ):
         self.led = led
         self.audio = audio
@@ -39,7 +41,41 @@ class CoinHandler:
         self.messenger = messenger
         self._coins: dict = {}
         self._coins_file = Path(coins_file)
+        self._runtime = runtime_config or {}
+        self._one_time_only = self._runtime.get("one_time_only", True)
+        self._coin_sound = self._runtime.get("coin_sound", "")
+        self._coin_sound_blocking = self._runtime.get("coin_sound_blocking", True)
+        self._success_sound = self._runtime.get("success_sound", "reward.wav")
+        self._redeemed_state_file = Path(
+            self._runtime.get("redeemed_state_file", "redeemed_tags.yaml")
+        )
+        self._redeemed: set[str] = set()
+        self._load_redeemed_state()
         self._load_coins()
+
+    def _load_redeemed_state(self):
+        if not self._redeemed_state_file.exists():
+            return
+        try:
+            with open(self._redeemed_state_file) as f:
+                data = yaml.safe_load(f) or {}
+            redeemed = data.get("redeemed_uids", [])
+            self._redeemed = set(str(x).upper() for x in redeemed)
+            logger.info("Loaded %d redeemed UID(s) from %s",
+                        len(self._redeemed), self._redeemed_state_file)
+        except Exception:
+            logger.exception("Failed to load redeemed state file")
+
+    def _save_redeemed_state(self):
+        try:
+            payload = {
+                "redeemed_uids": sorted(self._redeemed),
+                "updated_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            with open(self._redeemed_state_file, "w") as f:
+                yaml.safe_dump(payload, f, sort_keys=False)
+        except Exception:
+            logger.exception("Failed to save redeemed state file")
 
     def _load_coins(self):
         if not self._coins_file.exists():
@@ -65,6 +101,9 @@ class CoinHandler:
         if coin is None:
             return CoinStatus.UNKNOWN
 
+        if self._one_time_only and uid in self._redeemed:
+            return CoinStatus.REDEEMED
+
         expires = coin.get("expires")
         if expires is None:
             return CoinStatus.READY
@@ -85,6 +124,9 @@ class CoinHandler:
 
     def handle_tag(self, uid: str):
         """Main entry point: process a scanned NFC tag."""
+        if self._coin_sound:
+            self.audio.play(self._coin_sound, blocking=self._coin_sound_blocking)
+
         status = self.get_status(uid)
         coin = self._coins.get(uid, {})
         name = coin.get("name", uid)
@@ -101,10 +143,23 @@ class CoinHandler:
             self._handle_rejection(f"Expired: {name}")
             return
 
+        if status == CoinStatus.REDEEMED:
+            logger.warning("Already redeemed coin: %s (%s)", name, uid)
+            self._handle_rejection(f"Already redeemed: {name}")
+            return
+
         actions = coin.get("actions", [])
         if not actions:
             logger.info("Coin '%s' has no actions defined", name)
             return
+
+        if self._success_sound:
+            self.audio.play(self._success_sound, blocking=False)
+
+        if self._one_time_only:
+            self._redeemed.add(uid)
+            self._save_redeemed_state()
+            logger.info("Marked coin as redeemed: %s (%s)", name, uid)
 
         logger.info("Executing %d action(s) for '%s'", len(actions), name)
         for i, action in enumerate(actions):

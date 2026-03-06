@@ -5,7 +5,7 @@
 nfc:
   mode: hid                   # hid (USB keyboard emulation) or serial (virtual COM port)
   device_name: null           # partial match on device name, null = auto-detect
-  device_path: null           # e.g. /dev/input/event0 — set to skip auto-detection
+  device_path: /dev/input/event13  # fixed reader path on your Pi
   grab_device: true           # grab exclusive access so UIDs don't type into terminal
   uid_format: hex             # hex (AA:BB:CC:DD), decimal (0012345678), or raw
   debounce_time: 2.0          # seconds to ignore same tag after reading
@@ -46,6 +46,13 @@ messaging:
   whatsapp_cloud:
     phone_id: ${WHATSAPP_PHONE_ID}
     token: ${WHATSAPP_TOKEN}
+
+runtime:
+  one_time_only: true                     # once redeemed, a UID cannot be used again
+  redeemed_state_file: redeemed_tags.yaml # persisted redeemed UID state
+  coin_sound: "Coin sound.mp3"            # plays immediately when tag is tapped
+  coin_sound_blocking: true               # wait for coin sound to finish first
+  success_sound: "Retro success.mp3"      # plays for successful redemption
 
 logging:
   level: INFO                 # DEBUG, INFO, WARNING, ERROR
