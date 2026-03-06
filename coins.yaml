@@ -18,62 +18,7 @@
 # =============================================================================
 
 coins:
-  # --- Example: Party Mode coin ---
-  "AA:BB:CC:DD":
-    name: "Party Mode"
-    expires: "2026-12-31"
-    actions:
-      - type: play_sound
-        file: party_start.wav
-      - type: led_pattern
-        pattern: rainbow
-        duration: 60
-        speed: 1.0
-      - type: sonos_play
-        uri: "x-rincon-cpcontainer:1006206ccatalog%2fplaylists%2fB07D29GFMJ"
-        title: "Party Playlist"
-        volume: 40
-
-  # --- Example: Doorbell coin ---
-  "11:22:33:44":
-    name: "Doorbell"
-    expires: null
-    actions:
-      - type: play_sound
-        file: doorbell.wav
-      - type: led_pattern
-        pattern: pulse
-        color: [0, 100, 255]
-        duration: 5
-      - type: send_message
-        to: "+31612345678"
-        message: "Someone is at the door!"
-        method: whatsapp
-
-  # --- Example: Expired coin ---
-  "DE:AD:BE:EF":
-    name: "Old Promo Coin"
-    expires: "2025-01-01"
-    actions:
-      - type: play_sound
-        file: expired.wav
-
-  # --- Example: Night Light coin ---
-  "FF:EE:DD:CC":
-    name: "Night Light"
-    expires: null
-    actions:
-      - type: led_pattern
-        pattern: breathe
-        color: [255, 140, 0]
-        duration: 300
-        speed: 0.3
-      - type: sonos_play
-        uri: "x-sonosapi-radio:ST%3aetc"
-        title: "Chill Radio"
-        volume: 15
-
-  # --- Your coin: Never Gonna Give You Up ---
+  # --- Real coins ---
   "04b0aaa21f1d90":
     name: "Never Gonna Give You Up"
     expires: null
@@ -81,3 +26,80 @@ coins:
       - type: play_sound
         file: "Rick Astley - Never Gonna Give You Up.mp3"
         blocking: false
+
+  "04b0aca21f1d90":
+    name: "Clean the house"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-1.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Clean the house"
+        method: sms
+
+  "04ae23a21f1d90":
+    name: "Movie night"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-2.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Movie night"
+        method: sms
+
+  "04b0ada21f1d90":
+    name: "I'll do the dishes"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-3.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: I'll do the dishes"
+        method: sms
+
+  "04ae24a21f1d90":
+    name: "Breakfast in bed"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-4.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Breakfast in bed"
+        method: sms
+
+  "04ae21a21f1d90":
+    name: "Adventure time"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-1.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Adventure time"
+        method: sms
+
+  "04ae22a21f1d90":
+    name: "Cozy walk"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-2.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Cozy walk"
+        method: sms
+
+  "04b0aba21f1d90":
+    name: "Dress up date"
+    expires: null
+    actions:
+      - type: play_sound
+        file: "zapsplat-3.mp3"
+      - type: send_message
+        to: "+46739579559"
+        message: "Coin redeemed: Dress up date"
+        method: sms
