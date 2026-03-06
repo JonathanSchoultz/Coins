@@ -8,6 +8,3 @@ dist/
 build/
 .eggs/
 *.log
-sounds/*.wav
-sounds/*.mp3
-!sounds/.gitkeep
