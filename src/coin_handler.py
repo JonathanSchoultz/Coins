@@ -107,7 +107,36 @@ class CoinHandler:
         try:
             with open(self._coins_file) as f:
                 data = yaml.safe_load(f) or {}
-            self._coins = data.get("coins", {})
+            raw_coins = data.get("coins", {})
+
+            # Support two formats:
+            # 1) mapping (preferred):
+            #    coins:
+            #      "04...": {name: "...", actions: [...]}
+            # 2) list:
+            #    coins:
+            #      - uid: "04..."
+            #        name: "..."
+            #        actions: [...]
+            if isinstance(raw_coins, dict):
+                self._coins = raw_coins
+            elif isinstance(raw_coins, list):
+                mapped: dict = {}
+                for row in raw_coins:
+                    if not isinstance(row, dict):
+                        continue
+                    uid = row.get("uid")
+                    if not uid:
+                        continue
+                    entry = dict(row)
+                    entry.pop("uid", None)
+                    mapped[str(uid)] = entry
+                self._coins = mapped
+            else:
+                logger.error("Invalid coins format in %s: expected mapping or list",
+                             self._coins_file)
+                self._coins = {}
+
             self._coins_by_uid = {
                 self._normalize_uid(uid): coin for uid, coin in self._coins.items()
             }
