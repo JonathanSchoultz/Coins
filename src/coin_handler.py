@@ -180,6 +180,15 @@ class CoinHandler:
     def handle_tag(self, uid: str):
         """Main entry point: process a scanned NFC tag."""
         norm_uid = self._normalize_uid(uid)
+
+        # Hard guard: redeemed tags are always ignored silently, even if the
+        # coin entry is later missing/changed in coins.yaml.
+        if self._one_time_only and norm_uid in self._redeemed:
+            if norm_uid not in self._silenced_redeemed_uids:
+                logger.info("Ignoring already redeemed UID silently: %s", norm_uid)
+                self._silenced_redeemed_uids.add(norm_uid)
+            return
+
         status = self.get_status(norm_uid)
         coin = self._coins_by_uid.get(norm_uid, {})
         name = coin.get("name", norm_uid)
