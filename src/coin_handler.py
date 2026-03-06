@@ -243,10 +243,9 @@ class CoinHandler:
             logger.info("Marked coin as redeemed: %s (%s)", name, norm_uid)
 
     def _handle_rejection(self, reason: str):
-        """Flash red and play error sound for expired/unknown tags."""
+        """Handle rejected tags without any audio interruption."""
         logger.info("Rejection: %s", reason)
         self.led.flash_error(duration=3.0)
-        self.audio.play_error_sound()
 
     def _execute_action(self, action: dict, index: int, total: int):
         action_type = action.get("type")
