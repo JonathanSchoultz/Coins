@@ -1,0 +1,52 @@
+# =============================================================================
+# Coin Reader - Configuration
+# =============================================================================
+
+nfc:
+  mode: hid                   # hid (USB keyboard emulation) or serial (virtual COM port)
+  device_name: null           # partial match on device name, null = auto-detect
+  device_path: null           # e.g. /dev/input/event0 — set to skip auto-detection
+  grab_device: true           # grab exclusive access so UIDs don't type into terminal
+  uid_format: hex             # hex (AA:BB:CC:DD), decimal (0012345678), or raw
+  debounce_time: 2.0          # seconds to ignore same tag after reading
+  # Serial mode settings (only used if mode: serial)
+  serial_port: /dev/ttyUSB0
+  serial_baud: 9600
+
+led:
+  enabled: true
+  type: ws2812b               # ws2812b (GPIO-controlled) or usb (simple on/off)
+  gpio_pin: 18                # GPIO pin for WS2812B data line (PWM-capable: 18 or 12)
+  num_leds: 30                # number of LEDs on the strip
+  brightness: 0.5             # 0.0 to 1.0
+  # USB fallback settings (if type: usb)
+  usb_hub_location: "1-1"     # uhubctl hub location
+  usb_port: null              # null = all ports
+
+audio:
+  enabled: true
+  device: null                # ALSA device name, null for default
+  volume: 0.8                 # 0.0 to 1.0
+  sounds_dir: sounds          # directory for sound files
+
+sonos:
+  enabled: true
+  speaker_name: null          # null = auto-discover first speaker
+  speaker_ip: null            # set IP directly if discovery fails
+  default_volume: 25          # 0-100
+
+messaging:
+  enabled: true
+  provider: twilio            # twilio or whatsapp_cloud
+  twilio:
+    account_sid: ${TWILIO_ACCOUNT_SID}
+    auth_token: ${TWILIO_AUTH_TOKEN}
+    from_number: ${TWILIO_FROM_NUMBER}          # Twilio phone number
+    whatsapp_from: ${TWILIO_WHATSAPP_FROM}      # e.g. whatsapp:+14155238886
+  whatsapp_cloud:
+    phone_id: ${WHATSAPP_PHONE_ID}
+    token: ${WHATSAPP_TOKEN}
+
+logging:
+  level: INFO                 # DEBUG, INFO, WARNING, ERROR
+  file: /var/log/coin-reader.log

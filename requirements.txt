@@ -1,0 +1,9 @@
+evdev>=1.7.0
+pyserial>=3.5
+rpi-ws281x>=5.0.0
+adafruit-circuitpython-neopixel>=6.3.0
+soco>=0.30.0
+pygame>=2.5.0
+pywa>=3.0.0
+twilio>=9.0.0
+PyYAML>=6.0.0

@@ -1,0 +1,26 @@
+[Unit]
+Description=Coin Reader NFC Tag System
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/pi/coin-reader
+ExecStart=/usr/bin/python3 -m src.main -c config.yaml -d coins.yaml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment file for secrets (Twilio tokens, etc.)
+EnvironmentFile=-/home/pi/coin-reader/.env
+
+# Security hardening (ProtectSystem=full allows /dev access for evdev)
+ProtectSystem=full
+ReadWritePaths=/home/pi/coin-reader /var/log
+PrivateTmp=true
+SupplementaryGroups=input audio
+
+[Install]
+WantedBy=multi-user.target

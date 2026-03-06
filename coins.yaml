@@ -1,0 +1,74 @@
+# =============================================================================
+# Coin Database
+# =============================================================================
+# Each coin is identified by its NFC tag UID.
+# Status is determined by the 'expires' field:
+#   - If 'expires' is in the past -> EXPIRED (flash red + error sound)
+#   - If 'expires' is in the future or null (never expires) -> READY
+#   - If UID is not in this file -> UNKNOWN (flash red + error sound)
+#
+# Actions are executed in order when a coin is READY.
+# Available action types:
+#   - led_pattern:   Play a light pattern on the LED strip
+#   - play_sound:    Play a sound file on the local speaker
+#   - sonos_play:    Play music on Sonos
+#   - sonos_control: Control Sonos playback (volume, pause, skip, etc.)
+#   - send_message:  Send a WhatsApp or SMS message
+#   - wait:          Pause between actions (seconds)
+# =============================================================================
+
+coins:
+  # --- Example: Party Mode coin ---
+  "AA:BB:CC:DD":
+    name: "Party Mode"
+    expires: "2026-12-31"
+    actions:
+      - type: play_sound
+        file: party_start.wav
+      - type: led_pattern
+        pattern: rainbow
+        duration: 60
+        speed: 1.0
+      - type: sonos_play
+        uri: "x-rincon-cpcontainer:1006206ccatalog%2fplaylists%2fB07D29GFMJ"
+        title: "Party Playlist"
+        volume: 40
+
+  # --- Example: Doorbell coin ---
+  "11:22:33:44":
+    name: "Doorbell"
+    expires: null
+    actions:
+      - type: play_sound
+        file: doorbell.wav
+      - type: led_pattern
+        pattern: pulse
+        color: [0, 100, 255]
+        duration: 5
+      - type: send_message
+        to: "+31612345678"
+        message: "Someone is at the door!"
+        method: whatsapp
+
+  # --- Example: Expired coin ---
+  "DE:AD:BE:EF":
+    name: "Old Promo Coin"
+    expires: "2025-01-01"
+    actions:
+      - type: play_sound
+        file: expired.wav
+
+  # --- Example: Night Light coin ---
+  "FF:EE:DD:CC":
+    name: "Night Light"
+    expires: null
+    actions:
+      - type: led_pattern
+        pattern: breathe
+        color: [255, 140, 0]
+        duration: 300
+        speed: 0.3
+      - type: sonos_play
+        uri: "x-sonosapi-radio:ST%3aetc"
+        title: "Chill Radio"
+        volume: 15
