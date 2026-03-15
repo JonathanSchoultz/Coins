@@ -56,10 +56,10 @@ runtime:
   coin_sound_blocking: true               # wait for coin sound to finish first
   success_sound: "Retro success.mp3"      # plays for successful redemption
   rotating_sound_effects:                 # round-robin SFX for actions with rotate: true
-    - "zapsplat-1.mp3"
-    - "zapsplat-2.mp3"
-    - "zapsplat-3.mp3"
-    - "zapsplat-4.mp3"
+    - "zapsplat_multimedia_game_sound_harp_glissando_ascending_cute_fun_002_101778.mp3"
+    - "zapsplat_multimedia_game_sound_kids_game_cute_music_box_riff_happy_complete_success_114220.mp3"
+    - "zapsplat_multimedia_game_sound_kids_game_cute_music_box_riff_happy_finish_114221.mp3"
+    - "zapsplat_multimedia_game_sound_kids_game_cute_music_box_riff_time_up_complete_114225.mp3"
 
 logging:
   level: INFO                 # DEBUG, INFO, WARNING, ERROR

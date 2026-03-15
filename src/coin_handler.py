@@ -270,10 +270,29 @@ class CoinHandler:
         elif action_type == "play_sound":
             filename = action.get("file", "")
             if action.get("rotate", False) and self._rotating_sound_effects:
-                filename = self._rotating_sound_effects[self._rotating_sound_index]
-                self._rotating_sound_index = (
-                    self._rotating_sound_index + 1
-                ) % len(self._rotating_sound_effects)
+                total = len(self._rotating_sound_effects)
+                chosen = ""
+                for _ in range(total):
+                    candidate = self._rotating_sound_effects[self._rotating_sound_index]
+                    self._rotating_sound_index = (self._rotating_sound_index + 1) % total
+
+                    candidate_path = self.audio.sounds_dir / candidate
+                    if candidate_path.exists():
+                        chosen = candidate
+                        break
+
+                    logger.warning(
+                        "  Rotating SFX file missing, skipping: %s", candidate_path
+                    )
+
+                if not chosen:
+                    logger.error(
+                        "  No valid rotating SFX files found (configured=%s)",
+                        self._rotating_sound_effects,
+                    )
+                    return False
+
+                filename = chosen
                 logger.info("  Rotating SFX selected: %s", filename)
 
             self.audio.play(filename=filename, blocking=action.get("blocking", False))
