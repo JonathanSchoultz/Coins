@@ -30,21 +30,23 @@ class AudioPlayer:
 
         self._paplay = shutil.which("paplay")
         self._aplay = shutil.which("aplay")
+        self._mpg321 = shutil.which("mpg321")
         self._mpg123 = shutil.which("mpg123")
 
-        if not any((self._paplay, self._aplay, self._mpg123)):
+        if not any((self._paplay, self._aplay, self._mpg321, self._mpg123)):
             logger.error(
-                "No audio backend found (need paplay/aplay/mpg123). Audio playback unavailable."
+                "No audio backend found (need paplay/aplay/mpg321/mpg123). Audio playback unavailable."
             )
             return
 
         self._initialized = True
         logger.info(
-            "Audio player initialized (volume=%.1f, sounds_dir=%s, paplay=%s, aplay=%s, mpg123=%s)",
+            "Audio player initialized (volume=%.1f, sounds_dir=%s, paplay=%s, aplay=%s, mpg321=%s, mpg123=%s)",
             self.volume,
             self.sounds_dir,
             bool(self._paplay),
             bool(self._aplay),
+            bool(self._mpg321),
             bool(self._mpg123),
         )
 
@@ -75,60 +77,72 @@ class AudioPlayer:
             thread.start()
 
     def _play_blocking(self, path: Path):
-        command = self._build_command(path)
-        if not command:
+        commands = self._build_commands(path)
+        if not commands:
             logger.error("No supported player found for file: %s", path)
             return
 
-        try:
-            proc = subprocess.Popen(
-                command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            with self._process_lock:
-                self._active_processes.add(proc)
-
-            _, stderr = proc.communicate()
-            if proc.returncode != 0:
-                err = (stderr or "").strip()
-                logger.error(
-                    "Audio command failed (exit=%s): %s%s",
-                    proc.returncode,
-                    " ".join(command),
-                    f" :: {err}" if err else "",
+        last_error = ""
+        for command in commands:
+            try:
+                proc = subprocess.Popen(
+                    command,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
                 )
-        except Exception:
-            logger.exception("Error playing sound: %s", path)
-        finally:
-            if "proc" in locals():
                 with self._process_lock:
-                    self._active_processes.discard(proc)
+                    self._active_processes.add(proc)
 
-    def _build_command(self, path: Path):
+                _, stderr = proc.communicate()
+                if proc.returncode == 0:
+                    return
+
+                err = (stderr or "").strip()
+                last_error = (
+                    f"exit={proc.returncode} cmd={' '.join(command)}"
+                    + (f" :: {err}" if err else "")
+                )
+                logger.warning("Audio command failed, trying fallback: %s", last_error)
+            except Exception:
+                logger.exception("Error playing sound with command: %s", " ".join(command))
+                last_error = f"exception cmd={' '.join(command)}"
+            finally:
+                if "proc" in locals():
+                    with self._process_lock:
+                        self._active_processes.discard(proc)
+
+        logger.error("All audio playback commands failed for %s: %s", path, last_error)
+
+    def _build_commands(self, path: Path):
         suffix = path.suffix.lower()
         path_str = str(path)
+        commands = []
 
-        # For PulseAudio/PipeWire setups, paplay is usually the most reliable.
+        # For systemd services without a user pulse daemon, ALSA is usually more reliable.
         if suffix in {".wav", ".oga", ".ogg"}:
             if self._paplay:
-                return [self._paplay, "--volume", str(self._paplay_volume()), path_str]
+                commands.append([self._paplay, "--volume", str(self._paplay_volume()), path_str])
             if self._aplay and suffix == ".wav":
-                return [self._aplay, path_str]
-            return None
+                commands.append([self._aplay, path_str])
+            return commands
 
         if suffix == ".mp3":
+            if self._mpg321:
+                commands.append([self._mpg321, "-q", path_str])
             if self._mpg123:
-                return [self._mpg123, "-q", "-f", str(self._mpg123_scale()), path_str]
-            return None
+                commands.append(
+                    [self._mpg123, "-q", "-o", "alsa", "-f", str(self._mpg123_scale()), path_str]
+                )
+                commands.append([self._mpg123, "-q", "-f", str(self._mpg123_scale()), path_str])
+            return commands
 
         # Fallback: try paplay/aplay for unknown extensions.
         if self._paplay:
-            return [self._paplay, "--volume", str(self._paplay_volume()), path_str]
+            commands.append([self._paplay, "--volume", str(self._paplay_volume()), path_str])
         if self._aplay:
-            return [self._aplay, path_str]
-        return None
+            commands.append([self._aplay, path_str])
+        return commands
 
     def _paplay_volume(self) -> int:
         # PulseAudio volume is 0..65536.

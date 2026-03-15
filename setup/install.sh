@@ -23,6 +23,7 @@ apt-get install -y \
     python3-dev \
     python3-evdev \
     pulseaudio-utils \
+    mpg321 \
     mpg123 \
     git \
     uhubctl \
