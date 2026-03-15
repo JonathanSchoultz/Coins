@@ -1,19 +1,16 @@
-"""Local audio playback module using pygame.mixer."""
+"""Local audio playback module using OS audio tools."""
 
 import logging
-import os
+import math
+import shutil
+import struct
+import subprocess
+import tempfile
 import threading
+import wave
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
-
-try:
-    import pygame
-    PYGAME_AVAILABLE = True
-except ImportError:
-    PYGAME_AVAILABLE = False
-    logger.warning("pygame not installed — audio playback unavailable")
 
 
 class AudioPlayer:
@@ -23,28 +20,33 @@ class AudioPlayer:
         self.enabled = config.get("enabled", True)
         self.volume = config.get("volume", 0.8)
         self.sounds_dir = Path(base_dir) / config.get("sounds_dir", "sounds")
+        self._process_lock = threading.Lock()
+        self._active_processes = set()
         self._initialized = False
 
         if not self.enabled:
             logger.info("Audio player disabled in config")
             return
 
-        if not PYGAME_AVAILABLE:
+        self._paplay = shutil.which("paplay")
+        self._aplay = shutil.which("aplay")
+        self._mpg123 = shutil.which("mpg123")
+
+        if not any((self._paplay, self._aplay, self._mpg123)):
+            logger.error(
+                "No audio backend found (need paplay/aplay/mpg123). Audio playback unavailable."
+            )
             return
 
-        try:
-            device = config.get("device")
-            if device:
-                os.environ["SDL_AUDIODRIVER"] = "alsa"
-                os.environ["AUDIODEV"] = device
-
-            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=1024)
-            pygame.mixer.music.set_volume(self.volume)
-            self._initialized = True
-            logger.info("Audio player initialized (volume=%.1f, sounds_dir=%s)",
-                        self.volume, self.sounds_dir)
-        except Exception:
-            logger.exception("Failed to initialize audio")
+        self._initialized = True
+        logger.info(
+            "Audio player initialized (volume=%.1f, sounds_dir=%s, paplay=%s, aplay=%s, mpg123=%s)",
+            self.volume,
+            self.sounds_dir,
+            bool(self._paplay),
+            bool(self._aplay),
+            bool(self._mpg123),
+        )
 
     def play(self, filename: str, blocking: bool = False):
         """
@@ -73,21 +75,68 @@ class AudioPlayer:
             thread.start()
 
     def _play_blocking(self, path: Path):
+        command = self._build_command(path)
+        if not command:
+            logger.error("No supported player found for file: %s", path)
+            return
+
         try:
-            if path.suffix.lower() == ".wav":
-                sound = pygame.mixer.Sound(str(path))
-                sound.set_volume(self.volume)
-                channel = sound.play()
-                if channel:
-                    while channel.get_busy():
-                        pygame.time.wait(50)
-            else:
-                pygame.mixer.music.load(str(path))
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    pygame.time.wait(50)
+            proc = subprocess.Popen(
+                command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            with self._process_lock:
+                self._active_processes.add(proc)
+
+            _, stderr = proc.communicate()
+            if proc.returncode != 0:
+                err = (stderr or "").strip()
+                logger.error(
+                    "Audio command failed (exit=%s): %s%s",
+                    proc.returncode,
+                    " ".join(command),
+                    f" :: {err}" if err else "",
+                )
         except Exception:
             logger.exception("Error playing sound: %s", path)
+        finally:
+            if "proc" in locals():
+                with self._process_lock:
+                    self._active_processes.discard(proc)
+
+    def _build_command(self, path: Path):
+        suffix = path.suffix.lower()
+        path_str = str(path)
+
+        # For PulseAudio/PipeWire setups, paplay is usually the most reliable.
+        if suffix in {".wav", ".oga", ".ogg"}:
+            if self._paplay:
+                return [self._paplay, "--volume", str(self._paplay_volume()), path_str]
+            if self._aplay and suffix == ".wav":
+                return [self._aplay, path_str]
+            return None
+
+        if suffix == ".mp3":
+            if self._mpg123:
+                return [self._mpg123, "-q", "-f", str(self._mpg123_scale()), path_str]
+            return None
+
+        # Fallback: try paplay/aplay for unknown extensions.
+        if self._paplay:
+            return [self._paplay, "--volume", str(self._paplay_volume()), path_str]
+        if self._aplay:
+            return [self._aplay, path_str]
+        return None
+
+    def _paplay_volume(self) -> int:
+        # PulseAudio volume is 0..65536.
+        return int(max(0.0, min(1.0, self.volume)) * 65536)
+
+    def _mpg123_scale(self) -> int:
+        # mpg123 -f range is effectively 0..32768.
+        return int(max(0.0, min(1.0, self.volume)) * 32768)
 
     def play_error_sound(self):
         """Play the standard error/rejection sound."""
@@ -102,44 +151,52 @@ class AudioPlayer:
         if not self._initialized:
             return
         try:
-            import array
             sample_rate = 44100
             duration_ms = 300
-            freq = 440
             n_samples = int(sample_rate * duration_ms / 1000)
-            import math
-            buf = array.array("h", [
-                int(16000 * math.sin(2 * math.pi * freq * i / sample_rate))
-                for i in range(n_samples)
-            ])
-            sound = pygame.mixer.Sound(buffer=buf)
-            sound.set_volume(self.volume)
-            sound.play()
-            pygame.time.wait(duration_ms + 50)
-            # second beep (lower)
-            buf2 = array.array("h", [
-                int(16000 * math.sin(2 * math.pi * 330 * i / sample_rate))
-                for i in range(n_samples)
-            ])
-            sound2 = pygame.mixer.Sound(buffer=buf2)
-            sound2.set_volume(self.volume)
-            sound2.play()
-            pygame.time.wait(duration_ms + 50)
+            silence_samples = int(sample_rate * 0.05)
+
+            def tone(freq_hz: int):
+                for i in range(n_samples):
+                    sample = int(16000 * math.sin(2 * math.pi * freq_hz * i / sample_rate))
+                    yield struct.pack("<h", sample)
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                with wave.open(str(tmp_path), "wb") as wav_file:
+                    wav_file.setnchannels(1)
+                    wav_file.setsampwidth(2)
+                    wav_file.setframerate(sample_rate)
+                    wav_file.writeframes(b"".join(tone(440)))
+                    wav_file.writeframes(b"\x00\x00" * silence_samples)
+                    wav_file.writeframes(b"".join(tone(330)))
+
+                self._play_blocking(tmp_path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
         except Exception:
             logger.exception("Error generating error beep")
 
     def set_volume(self, volume: float):
         self.volume = max(0.0, min(1.0, volume))
-        if self._initialized:
-            pygame.mixer.music.set_volume(self.volume)
 
     def stop(self):
-        if self._initialized:
-            pygame.mixer.music.stop()
-            pygame.mixer.stop()
+        with self._process_lock:
+            procs = list(self._active_processes)
+
+        for proc in procs:
+            try:
+                if proc.poll() is None:
+                    proc.terminate()
+                    proc.wait(timeout=1)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
 
     def cleanup(self):
         self.stop()
-        if self._initialized:
-            pygame.mixer.quit()
         logger.info("Audio player cleaned up")

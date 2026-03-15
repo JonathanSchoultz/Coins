@@ -90,7 +90,7 @@ This installs all dependencies, configures USB input permissions, sets up a Pyth
 ### Manual Install
 
 ```bash
-sudo apt install python3-pip python3-venv python3-pygame python3-evdev uhubctl
+sudo apt install python3-pip python3-venv python3-evdev pulseaudio-utils mpg123 uhubctl
 
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
@@ -218,7 +218,7 @@ for fav in speaker.music_library.get_sonos_favorites():
 │   ├── main.py              # Entry point, signal handling
 │   ├── nfc_reader.py        # USB NFC reader (evdev HID or serial)
 │   ├── led_controller.py    # WS2812B patterns + USB fallback
-│   ├── audio_player.py      # Local speaker via pygame
+│   ├── audio_player.py      # Local speaker via paplay/mpg123
 │   ├── sonos_controller.py  # Sonos via SoCo library
 │   ├── messenger.py         # WhatsApp/SMS via Twilio or Cloud API
 │   └── coin_handler.py      # Action orchestrator

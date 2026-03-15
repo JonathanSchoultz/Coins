@@ -21,9 +21,9 @@ apt-get install -y \
     python3-pip \
     python3-venv \
     python3-dev \
-    python3-pygame \
     python3-evdev \
-    libsdl2-mixer-2.0-0 \
+    pulseaudio-utils \
+    mpg123 \
     git \
     uhubctl \
     alsa-utils
