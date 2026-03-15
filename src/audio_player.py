@@ -77,6 +77,9 @@ class AudioPlayer:
             thread.start()
 
     def _play_blocking(self, path: Path):
+        if path.suffix.lower() == ".mp3" and self._play_mp3_via_temp_wav(path):
+            return
+
         commands = self._build_commands(path)
         if not commands:
             logger.error("No supported player found for file: %s", path)
@@ -113,6 +116,49 @@ class AudioPlayer:
                         self._active_processes.discard(proc)
 
         logger.error("All audio playback commands failed for %s: %s", path, last_error)
+
+    def _play_mp3_via_temp_wav(self, path: Path) -> bool:
+        """Decode MP3 to a temp WAV, then play via WAV backends.
+
+        This avoids brittle MP3 output driver stacks (JACK/libao/out123) in
+        headless systemd environments.
+        """
+        if not self._mpg123:
+            return False
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+
+        try:
+            decode_cmd = [self._mpg123, "-q", "-w", str(tmp_path), str(path)]
+            proc = subprocess.run(
+                decode_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if proc.returncode != 0:
+                err = (proc.stderr or "").strip()
+                logger.warning(
+                    "MP3 decode-to-WAV failed (exit=%s): %s%s",
+                    proc.returncode,
+                    " ".join(decode_cmd),
+                    f" :: {err}" if err else "",
+                )
+                return False
+
+            if not tmp_path.exists() or tmp_path.stat().st_size == 0:
+                logger.warning("MP3 decode produced empty WAV: %s", tmp_path)
+                return False
+
+            # Reuse normal WAV playback path (paplay/aplay fallbacks).
+            self._play_blocking(tmp_path)
+            return True
+        except Exception:
+            logger.exception("Error decoding MP3 before playback: %s", path)
+            return False
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     def _build_commands(self, path: Path):
         suffix = path.suffix.lower()
