@@ -41,8 +41,8 @@ messaging:
   enabled: true
   provider: twilio            # twilio or whatsapp_cloud
   twilio:
-    account_sid: AC7b18980b08e82b319e22c1cb0b2591f6
-    auth_token: a50100621e22202b2eee25014c76c943
+    account_sid: ${TWILIO_ACCOUNT_SID}
+    auth_token: ${TWILIO_AUTH_TOKEN}
     from_number: ${TWILIO_FROM_NUMBER}          # Twilio phone number
     whatsapp_from: ${TWILIO_WHATSAPP_FROM}      # e.g. whatsapp:+14155238886
   whatsapp_cloud:
