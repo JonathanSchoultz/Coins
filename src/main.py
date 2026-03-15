@@ -24,6 +24,44 @@ logger = logging.getLogger("coinreader")
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def load_env_file(env_path: Path):
+    """
+    Load KEY=VALUE pairs from a .env file into process env.
+
+    Existing environment variables are not overwritten.
+    """
+    if not env_path.exists():
+        return
+
+    try:
+        with open(env_path, encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                if line.startswith("export "):
+                    line = line[len("export "):].strip()
+
+                if "=" not in line:
+                    continue
+
+                key, value = line.split("=", 1)
+                key = key.strip()
+                if not key:
+                    continue
+
+                value = value.strip()
+                if (value.startswith('"') and value.endswith('"')) or (
+                    value.startswith("'") and value.endswith("'")
+                ):
+                    value = value[1:-1]
+
+                os.environ.setdefault(key, value)
+    except Exception:
+        logger.exception("Failed to load environment file: %s", env_path)
+
+
 def load_config(config_path: str) -> dict:
     path = Path(config_path)
     if not path.is_absolute():
@@ -65,6 +103,7 @@ def main():
     parser.add_argument("--simulate", metavar="UID", help="Simulate a tag scan (for testing)")
     args = parser.parse_args()
 
+    load_env_file(BASE_DIR / ".env")
     config = load_config(args.config)
     setup_logging(config)
 

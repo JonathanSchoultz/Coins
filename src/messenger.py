@@ -30,6 +30,22 @@ def _resolve_env(value: str) -> str:
     return value
 
 
+def _looks_like_placeholder(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    v = value.strip().lower()
+    if not v:
+        return True
+    placeholder_markers = (
+        "your_",
+        "xxxxxxxx",
+        "changeme",
+        "example",
+        "replace",
+    )
+    return any(marker in v for marker in placeholder_markers)
+
+
 class Messenger:
     """Sends messages via WhatsApp or SMS."""
 
@@ -63,8 +79,8 @@ class Messenger:
         self._twilio_from_sms = _resolve_env(twilio_cfg.get("from_number", ""))
         self._twilio_from_wa = _resolve_env(twilio_cfg.get("whatsapp_from", ""))
 
-        if not sid or not token:
-            logger.error("Twilio credentials not configured")
+        if _looks_like_placeholder(sid) or _looks_like_placeholder(token):
+            logger.error("Twilio credentials are missing or placeholder values")
             return
 
         try:
@@ -116,6 +132,9 @@ class Messenger:
     def _send_sms(self, to: str, message: str) -> bool:
         if not self._twilio_client:
             logger.error("Twilio not initialized — cannot send SMS")
+            return False
+        if _looks_like_placeholder(self._twilio_from_sms):
+            logger.error("Twilio SMS from_number is missing or placeholder")
             return False
         try:
             msg = self._twilio_client.messages.create(
