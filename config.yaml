@@ -27,7 +27,7 @@ led:
 
 audio:
   enabled: true
-  device: null                # ALSA device name, null for default
+  device: alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output.2                # ALSA device name, null for default
   volume: 0.8                 # 0.0 to 1.0
   sounds_dir: sounds          # directory for sound files
 
