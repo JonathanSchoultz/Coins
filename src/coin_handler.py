@@ -230,7 +230,10 @@ class CoinHandler:
         had_action_failure = False
         for i, action in enumerate(actions):
             try:
-                self._execute_action(action, i + 1, len(actions))
+                result = self._execute_action(action, i + 1, len(actions))
+                if result is False:
+                    had_action_failure = True
+                    logger.error("Action %d reported failure for coin '%s'", i + 1, name)
             except Exception:
                 had_action_failure = True
                 logger.exception("Action %d failed for coin '%s'", i + 1, name)
@@ -247,7 +250,7 @@ class CoinHandler:
         logger.info("Rejection: %s", reason)
         self.led.flash_error(duration=3.0)
 
-    def _execute_action(self, action: dict, index: int, total: int):
+    def _execute_action(self, action: dict, index: int, total: int) -> bool:
         action_type = action.get("type")
         logger.info("  Action %d/%d: %s", index, total, action_type)
 
@@ -258,12 +261,14 @@ class CoinHandler:
                 color=action.get("color"),
                 speed=action.get("speed", 1.0),
             )
+            return True
 
         elif action_type == "play_sound":
             self.audio.play(
                 filename=action.get("file", ""),
                 blocking=action.get("blocking", False),
             )
+            return True
 
         elif action_type == "sonos_play":
             uri = action.get("uri")
@@ -276,6 +281,8 @@ class CoinHandler:
                 self.sonos.play_uri(uri, title=action.get("title", ""), volume=volume)
             else:
                 logger.warning("sonos_play action missing 'uri' or 'favorite'")
+                return False
+            return True
 
         elif action_type == "sonos_control":
             command = action.get("command")
@@ -293,9 +300,11 @@ class CoinHandler:
                 self.sonos.group_all()
             else:
                 logger.warning("Unknown sonos_control command: %s", command)
+                return False
+            return True
 
         elif action_type == "send_message":
-            self.messenger.send(
+            return self.messenger.send(
                 to=action.get("to", ""),
                 message=action.get("message", ""),
                 method=action.get("method", "whatsapp"),
@@ -305,6 +314,8 @@ class CoinHandler:
             seconds = action.get("seconds", 1)
             logger.info("  Waiting %.1f seconds", seconds)
             time.sleep(seconds)
+            return True
 
         else:
             logger.warning("Unknown action type: %s", action_type)
+            return False
