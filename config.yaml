@@ -54,7 +54,7 @@ runtime:
   redeemed_state_file: redeemed_tags.yaml # persisted redeemed UID state
   coin_sound: "Coin sound.mp3"            # plays immediately when tag is tapped
   coin_sound_blocking: true               # wait for coin sound to finish first
-  success_sound: "Retro success.mp3"      # plays for successful redemption
+  success_sound: ""                        # disabled: only coin tap + action sounds
   rotating_sound_effects:                 # round-robin SFX for actions with rotate: true
     - "zapsplat_multimedia_game_sound_harp_glissando_ascending_cute_fun_002_101778.mp3"
     - "zapsplat_multimedia_game_sound_kids_game_cute_music_box_riff_happy_complete_success_114220.mp3"

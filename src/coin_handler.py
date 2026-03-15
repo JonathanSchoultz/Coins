@@ -46,7 +46,7 @@ class CoinHandler:
         self._one_time_only = self._runtime.get("one_time_only", True)
         self._coin_sound = self._runtime.get("coin_sound", "")
         self._coin_sound_blocking = self._runtime.get("coin_sound_blocking", True)
-        self._success_sound = self._runtime.get("success_sound", "reward.wav")
+        self._success_sound = self._runtime.get("success_sound", "")
         self._rotating_sound_effects = list(
             self._runtime.get("rotating_sound_effects", [])
         )

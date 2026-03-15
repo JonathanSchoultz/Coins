@@ -46,6 +46,14 @@ def _looks_like_placeholder(value: str) -> bool:
     return any(marker in v for marker in placeholder_markers)
 
 
+def _mask_secret(value: str, left: int = 4, right: int = 4) -> str:
+    if not value:
+        return "<empty>"
+    if len(value) <= left + right:
+        return "*" * len(value)
+    return f"{value[:left]}{'*' * (len(value) - left - right)}{value[-right:]}"
+
+
 class Messenger:
     """Sends messages via WhatsApp or SMS."""
 
@@ -74,10 +82,18 @@ class Messenger:
             logger.warning("twilio package not installed — messaging unavailable")
             return
 
-        sid = _resolve_env(twilio_cfg.get("account_sid", ""))
-        token = _resolve_env(twilio_cfg.get("auth_token", ""))
-        self._twilio_from_sms = _resolve_env(twilio_cfg.get("from_number", ""))
-        self._twilio_from_wa = _resolve_env(twilio_cfg.get("whatsapp_from", ""))
+        sid = os.environ.get("TWILIO_ACCOUNT_SID") or _resolve_env(
+            twilio_cfg.get("account_sid", "")
+        )
+        token = os.environ.get("TWILIO_AUTH_TOKEN") or _resolve_env(
+            twilio_cfg.get("auth_token", "")
+        )
+        self._twilio_from_sms = os.environ.get("TWILIO_FROM_NUMBER") or _resolve_env(
+            twilio_cfg.get("from_number", "")
+        )
+        self._twilio_from_wa = os.environ.get("TWILIO_WHATSAPP_FROM") or _resolve_env(
+            twilio_cfg.get("whatsapp_from", "")
+        )
 
         if _looks_like_placeholder(sid) or _looks_like_placeholder(token):
             logger.error("Twilio credentials are missing or placeholder values")
@@ -85,7 +101,12 @@ class Messenger:
 
         try:
             self._twilio_client = TwilioClient(sid, token)
-            logger.info("Twilio messenger initialized")
+            logger.info(
+                "Twilio messenger initialized (sid=%s token_len=%d from_sms=%s)",
+                _mask_secret(sid, left=6, right=4),
+                len(token),
+                self._twilio_from_sms or "<empty>",
+            )
         except Exception:
             logger.exception("Twilio initialization failed")
 
