@@ -55,6 +55,11 @@ runtime:
   coin_sound: "Coin sound.mp3"            # plays immediately when tag is tapped
   coin_sound_blocking: true               # wait for coin sound to finish first
   success_sound: "Retro success.mp3"      # plays for successful redemption
+  rotating_sound_effects:                 # round-robin SFX for actions with rotate: true
+    - "zapsplat-1.mp3"
+    - "zapsplat-2.mp3"
+    - "zapsplat-3.mp3"
+    - "zapsplat-4.mp3"
 
 logging:
   level: INFO                 # DEBUG, INFO, WARNING, ERROR

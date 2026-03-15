@@ -47,6 +47,10 @@ class CoinHandler:
         self._coin_sound = self._runtime.get("coin_sound", "")
         self._coin_sound_blocking = self._runtime.get("coin_sound_blocking", True)
         self._success_sound = self._runtime.get("success_sound", "reward.wav")
+        self._rotating_sound_effects = list(
+            self._runtime.get("rotating_sound_effects", [])
+        )
+        self._rotating_sound_index = 0
         self._redeemed_state_file = Path(
             self._runtime.get("redeemed_state_file", "redeemed_tags.yaml")
         )
@@ -264,10 +268,15 @@ class CoinHandler:
             return True
 
         elif action_type == "play_sound":
-            self.audio.play(
-                filename=action.get("file", ""),
-                blocking=action.get("blocking", False),
-            )
+            filename = action.get("file", "")
+            if action.get("rotate", False) and self._rotating_sound_effects:
+                filename = self._rotating_sound_effects[self._rotating_sound_index]
+                self._rotating_sound_index = (
+                    self._rotating_sound_index + 1
+                ) % len(self._rotating_sound_effects)
+                logger.info("  Rotating SFX selected: %s", filename)
+
+            self.audio.play(filename=filename, blocking=action.get("blocking", False))
             return True
 
         elif action_type == "sonos_play":

@@ -32,10 +32,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-1.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Clean the house"
+        message: "Coin redeemed: Clean the house 🧹✨🎉"
         method: sms
 
   "04ae23a21f1d90":
@@ -43,10 +43,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-2.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Movie night"
+        message: "Coin redeemed: Movie night 🎬🍿✨"
         method: sms
 
   "04b0ada21f1d90":
@@ -54,10 +54,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-3.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: I'll do the dishes"
+        message: "Coin redeemed: I'll do the dishes 🍽️🫧🙌"
         method: sms
 
   "04ae24a21f1d90":
@@ -65,10 +65,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-4.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Breakfast in bed"
+        message: "Coin redeemed: Breakfast in bed 🥐☕️💖"
         method: sms
 
   "04ae21a21f1d90":
@@ -76,10 +76,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-1.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Adventure time"
+        message: "Coin redeemed: Adventure time 🧭🌟🚀"
         method: sms
 
   "04ae22a21f1d90":
@@ -87,10 +87,10 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-2.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Cozy walk"
+        message: "Coin redeemed: Cozy walk 🚶‍♀️🍃✨"
         method: sms
 
   "04b0aba21f1d90":
@@ -98,8 +98,8 @@ coins:
     expires: null
     actions:
       - type: play_sound
-        file: "zapsplat-3.mp3"
+        rotate: true
       - type: send_message
         to: "+46739579559"
-        message: "Coin redeemed: Dress up date"
+        message: "Coin redeemed: Dress up date 👗💃✨"
         method: sms
