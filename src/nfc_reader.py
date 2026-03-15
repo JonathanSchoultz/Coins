@@ -97,6 +97,9 @@ class NFCReader:
         self.mode = config.get("mode", "hid")  # "hid" or "serial"
         self.debounce_time = config.get("debounce_time", 2.0)
         self.uid_format = config.get("uid_format", "hex")  # "hex", "decimal", "raw"
+        # Some HID readers occasionally emit truncated trailing fragments.
+        self.min_uid_bytes = int(config.get("min_uid_bytes", 4))
+        self.min_decimal_digits = int(config.get("min_decimal_digits", 8))
 
         # HID mode settings
         self._device_name = config.get("device_name")
@@ -215,6 +218,10 @@ class NFCReader:
 
     def _handle_uid(self, uid: str, on_tag: Callable[[str], None]):
         """Process a UID with debouncing."""
+        if not self._is_plausible_uid(uid):
+            logger.debug("Ignoring short/invalid UID fragment: %s", uid)
+            return
+
         now = time.time()
         if uid == self._last_uid and (now - self._last_read_time) < self.debounce_time:
             logger.debug("Debounced duplicate: %s", uid)
@@ -224,6 +231,23 @@ class NFCReader:
         self._last_read_time = now
         logger.info("Tag detected: %s", uid)
         on_tag(uid)
+
+    def _is_plausible_uid(self, uid: str) -> bool:
+        """Filter obvious partial UID fragments produced by noisy HID readers."""
+        text = str(uid).strip().upper()
+        if not text:
+            return False
+
+        if self.uid_format == "decimal":
+            digits = "".join(ch for ch in text if ch.isdigit())
+            return len(digits) >= self.min_decimal_digits
+
+        # hex/raw readers commonly produce hexadecimal IDs.
+        hex_compact = "".join(ch for ch in text if ch in "0123456789ABCDEF")
+        if len(hex_compact) < self.min_uid_bytes * 2:
+            return False
+        # Require full bytes.
+        return len(hex_compact) % 2 == 0
 
     def _format_uid(self, raw: str) -> str:
         """

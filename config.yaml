@@ -9,6 +9,8 @@ nfc:
   grab_device: true           # grab exclusive access so UIDs don't type into terminal
   uid_format: hex             # hex (AA:BB:CC:DD), decimal (0012345678), or raw
   debounce_time: 2.0          # seconds to ignore same tag after reading
+  min_uid_bytes: 4            # ignore shorter hex/raw fragments (e.g. accidental "1D:90")
+  min_decimal_digits: 8       # ignore shorter decimal fragments
   # Serial mode settings (only used if mode: serial)
   serial_port: /dev/ttyUSB0
   serial_baud: 9600

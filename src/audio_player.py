@@ -19,6 +19,7 @@ class AudioPlayer:
     def __init__(self, config: dict, base_dir: str = "."):
         self.enabled = config.get("enabled", True)
         self.volume = config.get("volume", 0.8)
+        self.device = config.get("device")
         self.sounds_dir = Path(base_dir) / config.get("sounds_dir", "sounds")
         self._process_lock = threading.Lock()
         self._active_processes = set()
@@ -41,9 +42,10 @@ class AudioPlayer:
 
         self._initialized = True
         logger.info(
-            "Audio player initialized (volume=%.1f, sounds_dir=%s, paplay=%s, aplay=%s, mpg321=%s, mpg123=%s)",
+            "Audio player initialized (volume=%.1f, sounds_dir=%s, device=%s, paplay=%s, aplay=%s, mpg321=%s, mpg123=%s)",
             self.volume,
             self.sounds_dir,
+            self.device or "default",
             bool(self._paplay),
             bool(self._aplay),
             bool(self._mpg321),
@@ -168,9 +170,17 @@ class AudioPlayer:
         # For systemd services without a user pulse daemon, ALSA is usually more reliable.
         if suffix in {".wav", ".oga", ".ogg"}:
             if self._paplay:
-                commands.append([self._paplay, "--volume", str(self._paplay_volume()), path_str])
+                cmd = [self._paplay]
+                if self.device:
+                    cmd.extend(["--device", str(self.device)])
+                cmd.extend(["--volume", str(self._paplay_volume()), path_str])
+                commands.append(cmd)
             if self._aplay and suffix == ".wav":
-                commands.append([self._aplay, path_str])
+                cmd = [self._aplay]
+                if self.device:
+                    cmd.extend(["-D", str(self.device)])
+                cmd.append(path_str)
+                commands.append(cmd)
             return commands
 
         if suffix == ".mp3":
@@ -185,9 +195,17 @@ class AudioPlayer:
 
         # Fallback: try paplay/aplay for unknown extensions.
         if self._paplay:
-            commands.append([self._paplay, "--volume", str(self._paplay_volume()), path_str])
+            cmd = [self._paplay]
+            if self.device:
+                cmd.extend(["--device", str(self.device)])
+            cmd.extend(["--volume", str(self._paplay_volume()), path_str])
+            commands.append(cmd)
         if self._aplay:
-            commands.append([self._aplay, path_str])
+            cmd = [self._aplay]
+            if self.device:
+                cmd.extend(["-D", str(self.device)])
+            cmd.append(path_str)
+            commands.append(cmd)
         return commands
 
     def _paplay_volume(self) -> int:
