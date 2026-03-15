@@ -2,6 +2,7 @@
 
 import logging
 import math
+import os
 import shutil
 import struct
 import subprocess
@@ -51,6 +52,7 @@ class AudioPlayer:
             bool(self._mpg321),
             bool(self._mpg123),
         )
+        self._log_startup_audio_diagnostics()
 
     def play(self, filename: str, blocking: bool = False):
         """
@@ -215,6 +217,61 @@ class AudioPlayer:
     def _mpg123_scale(self) -> int:
         # mpg123 -f range is effectively 0..32768.
         return int(max(0.0, min(1.0, self.volume)) * 32768)
+
+    def _log_startup_audio_diagnostics(self):
+        """Emit startup diagnostics to make audio routing issues obvious."""
+        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+        pulse_server = os.environ.get("PULSE_SERVER")
+        logger.info(
+            "Audio diagnostics: XDG_RUNTIME_DIR=%s PULSE_SERVER=%s",
+            runtime_dir or "<unset>",
+            pulse_server or "<unset>",
+        )
+
+        # If no explicit sink is configured, we cannot validate a target.
+        if not self.device:
+            return
+
+        pactl = shutil.which("pactl")
+        if not pactl:
+            logger.warning("Audio diagnostics: pactl not found; cannot validate configured sink")
+            return
+
+        try:
+            proc = subprocess.run(
+                [pactl, "list", "short", "sinks"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=2,
+            )
+            if proc.returncode != 0:
+                err = (proc.stderr or "").strip()
+                logger.warning(
+                    "Audio diagnostics: failed to list sinks (exit=%s)%s",
+                    proc.returncode,
+                    f" :: {err}" if err else "",
+                )
+                return
+
+            sinks = []
+            for line in proc.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2:
+                    sinks.append(parts[1])
+
+            if self.device in sinks:
+                logger.info("Audio diagnostics: configured sink is available: %s", self.device)
+            else:
+                logger.warning(
+                    "Audio diagnostics: configured sink not found: %s (available=%s)",
+                    self.device,
+                    ", ".join(sinks) if sinks else "<none>",
+                )
+        except subprocess.TimeoutExpired:
+            logger.warning("Audio diagnostics: timeout while listing sinks")
+        except Exception:
+            logger.exception("Audio diagnostics failed unexpectedly")
 
     def play_error_sound(self):
         """Play the standard error/rejection sound."""

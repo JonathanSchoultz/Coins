@@ -53,6 +53,22 @@ aplay ~/Coins/sounds/error.wav
 mpg123 -q -o alsa "~/Coins/sounds/your-file.mp3"
 ```
 
+## 4b) Post-reboot audio sanity check (recommended)
+
+```bash
+SINK="alsa_output.usb-C-Media_Electronics_Inc._USB_PnP_Sound_Device-00.analog-stereo-output.2"
+ENVV='XDG_RUNTIME_DIR=/run/user/1000 PULSE_SERVER=unix:/run/user/1000/pulse/native'
+
+sudo -u jschoultz env $ENVV pactl set-default-sink "$SINK"
+sudo -u jschoultz env $ENVV pactl set-sink-mute "$SINK" 0
+sudo -u jschoultz env $ENVV pactl set-sink-volume "$SINK" 100%
+sudo -u jschoultz env $ENVV paplay --device "$SINK" /usr/share/sounds/freedesktop/stereo/complete.oga
+```
+
+Expected startup log lines from the app:
+- `Audio diagnostics: XDG_RUNTIME_DIR=... PULSE_SERVER=...`
+- `Audio diagnostics: configured sink is available: ...`
+
 ## 5) Check what service is actually running
 
 ```bash
